@@ -1,7 +1,9 @@
 ## things to well, ignore
 ## for scraping things we're going to ignore html for the time being
 *.html
-
+*receipts*
+*.RData
+*.RHistory
 # Compiled source #
 ###################
 *.com
