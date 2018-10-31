@@ -2,7 +2,7 @@
 library(data.table)
 library(ggplot2)
 library(zoo)
-raw = fread('/Users/arjungup/Documents/data_projects/edison/edison_dominos_receipts.csv')
+raw = fread('/Users/arjungup/projects/data_projects/edison/edison_dominos_receipts.csv')
 # save as RDS for hopefully faster reading
 saveRDS(raw, 'raw_edison_data.rds')
 #saveRDS(order_table, 'order_table_edison_data.rds')
@@ -16,19 +16,19 @@ head(raw)
 raw[, unique(merchant_name)] # only DPZ
 # turn dates into, well, dates
 fmt = '%Y-%m-%d'
-# retain the timestamps if you need them. Ok this isn't working so come back to
-raw[, c('order_time_timestamp', 'email_time_timestamp', 'update_time_timestamp', 'insert_time_timestamp', 'user_create_time_timestamp', 'user_last_process_day') := 
-      list( as.Date(order_time, fmt = '%Y-%m-%d'), as.Date(email_time, fmt = '%Y-%m-%d'), 
-            as.Date(update_time, fmt = '%Y-%m-%d') , as.Date(insert_time, fmt = '%Y-%m-%d'),
-            as.Date(user_create_time, fmt = '%Y-%m-%d'), as.Date(user_last_process_day, fmt = '%Y-%m-%d'))  ]
+# Can come up with a way retain the timestamps if you need them but probably not super relevant
 
 # turn numbers into numbers
 raw[, order_number := as.numeric(order_number) ]
-# make things into dates
-raw[, c('order_time', 'email_time', 'update_time', 'insert_time', 'user_create_time', 'user_last_process_day') := 
-      list( as.Date(order_time, fmt = '%Y-%m-%d'), as.Date(email_time, fmt = '%Y-%m-%d'), 
-            as.Date(update_time, fmt = '%Y-%m-%d') , as.Date(insert_time, fmt = '%Y-%m-%d'),
-            as.Date(user_create_time, fmt = '%Y-%m-%d'), as.Date(user_last_process_day, fmt = '%Y-%m-%d'))  ]
+# when you consider we really only need order time
+raw[, order_time := as.Date(order_time, fmt = '%Y-%m-%d')]
+
+# # make things into dates
+# raw[, c('order_time', 'email_time', 'update_time', 'insert_time', 'user_create_time', 'user_last_process_day') := 
+#       list( as.Date(order_time, fmt = '%Y-%m-%d'), as.Date(email_time, fmt = '%Y-%m-%d'), 
+#             as.Date(update_time, fmt = '%Y-%m-%d') , as.Date(insert_time, fmt = '%Y-%m-%d'),
+#             as.Date(user_create_time, fmt = '%Y-%m-%d'), as.Date(user_last_process_day, fmt = '%Y-%m-%d'))  ]
+
 # order table
 setkey(raw, order_time, user_id, order_total_amount)
 #setkey(order_table, order_time, user_id, order_total_amount)
@@ -112,7 +112,7 @@ order_table[, order_total_min := NULL]; setnames(order_table, 'order_total_max',
 order_table[, c('month', 'quarter') := list(as.yearmon(order_time), as.yearqtr(order_time))]
 order_table = order_table[!is.na(order_time)] # this causes issues down the line
 setkey(order_table, order_time, user_id, order_total_amount)
-
+saveRDS(order_table, 'order_table.rds')
 ### create DPZ quarters. they have 3 12-week quarters and 1 16 week quarter, so could be causing a difference
 # In an ideal world we'd figure out foverlaps but this is faster for the moment
 order_table[ order_time <= '2015-03-22', dpz_quarter := '2015 Q1']
@@ -168,7 +168,6 @@ quickLineGraph(spend_by_dpz_quarter[dpz_quarter != '2018 Q3'], 'dpz_quarter', 't
 quickLineGraph(spend_by_dpz_quarter[dpz_quarter != '2018 Q3'], 'dpz_quarter', 'yoy_total_spend') # yeah this is extremely wrong
 
 ## read in actuals
-
 revenue_actuals = fread("/Users/arjungup/Documents/data_projects/edison/dpz_revenue_actuals.csv")
 setnames(revenue_actuals, 'yoy_tota_revenue', 'yoy_total_revenue')
 fmt = '%m/%d/%Y'
