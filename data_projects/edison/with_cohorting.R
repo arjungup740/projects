@@ -55,22 +55,29 @@ order_table[, user_date_of_birth := min(order_time), by = user_id] # get birth
 order_table[, user_cohort := as.yearqtr(user_date_of_birth)] # assign them to a cohort
 cohort_sizes = order_table[, .(count_unique_customers = uniqueN(user_id)), by = user_cohort] # see number of people in each cohort
 
-order_table[quarter == '2016 Q1' & user_cohort == '2015 Q1', uniqueN(user_id)] # get a count of people who were born in 2015 Q1 transacting in 2016 Q1 # 21815
-order_table[quarter == cohort_sizes[, user_cohort][5] & user_cohort == cohort_sizes[, user_cohort][1], uniqueN(user_id)]
-order_table[quarter == '2016 Q2' & user_cohort == '2015 Q2', uniqueN(user_id)] # 12593
-order_table[quarter == '2018 Q2' & user_cohort == '2017 Q2', uniqueN(user_id)]
+order_table[quarter == '2017 Q1' & user_cohort == '2016 Q1', .(uniqueN(user_id), sum(order_total_amount))] # get a count of people who were born in 2015 Q1 transacting in 2016 Q1 # 21815
+order_table[quarter == '2016 Q1' & user_cohort == '2016 Q1', .(uniqueN(user_id), sum(order_total_amount))]
 ### to start what we want to do is say give me the spend of all people who were born a year before the previous quarter
 all_usable_cohorts = cohort_sizes[, user_cohort][1:10] # stop afer 2017 Q2
 quarter_spend_frame_naive_cohorts = rbindlist(
   lapply(all_usable_cohorts, function(cohort){
     order_table[quarter == cohort + 1 & user_cohort == cohort, 
                   .(quarter = as.yearqtr(cohort + 1),
-                    num_users = uniqueN(user_id), 
-                    one_year_previous_cohort_spend = sum(order_total_amount))]
+                    num_surviving_users = uniqueN(user_id), 
+                    one_year_later_cohort_spend = sum(order_total_amount))]
     }
   )
 ) # and we'd compare this to that quarters spend with users in the cohort, ie order_table[ quarter == user_cohort, sum(spend)]
+# join the above to compare against that quarter's spend
+spend_by_cohorts_in_birth_quarter = order_table[ quarter == user_cohort, 
+                                                 .(birth_quarter_plus_one_year = as.yearqtr(quarter + 1),
+                                                   total_spend_in_birth_quarter = sum(order_total_amount), 
+                                                   num_users_at_birth = uniqueN(user_id)), 
+                                                 by = quarter]
 
+quarter_spend_frame_naive_cohorts = merge(quarter_spend_frame_naive_cohorts, spend_by_cohorts_in_birth_quarter, by.x = 'quarter', by.y = 'birth_quarter_plus_one_year')
+quarter_spend_frame_naive_cohorts[, yoy_signal := one_year_later_cohort_spend / total_spend_in_birth_quarter - 1]
+quickLineGraph(quarter_spend_frame_naive_cohorts, 'quarter', 'yoy_signal')
 ## read in actuals
 revenue_actuals = fread("/Users/arjungup/Documents/data_projects/edison/dpz_revenue_actuals.csv")
 setnames(revenue_actuals, 'yoy_tota_revenue', 'yoy_total_revenue')
