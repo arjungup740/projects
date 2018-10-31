@@ -59,11 +59,17 @@ order_table[quarter == '2016 Q1' & user_cohort == '2015 Q1', uniqueN(user_id)] #
 order_table[quarter == cohort_sizes[, user_cohort][5] & user_cohort == cohort_sizes[, user_cohort][1], uniqueN(user_id)]
 order_table[quarter == '2016 Q2' & user_cohort == '2015 Q2', uniqueN(user_id)] # 12593
 order_table[quarter == '2018 Q2' & user_cohort == '2017 Q2', uniqueN(user_id)]
-# what we want to do is say give me the spend of all people who were born a year before the previous quarter
+### to start what we want to do is say give me the spend of all people who were born a year before the previous quarter
 all_usable_cohorts = cohort_sizes[, user_cohort][1:10] # stop afer 2017 Q2
-for( cohort in all_usable_cohorts ){ 
-  print(order_table[quarter == cohort + 1 & user_cohort == cohort, .(num_users = uniqueN(user_id), cohort_spend = sum(order_total_amount))])
-}
+quarter_spend_frame_naive_cohorts = rbindlist(
+  lapply(all_usable_cohorts, function(cohort){
+    order_table[quarter == cohort + 1 & user_cohort == cohort, 
+                  .(quarter = as.yearqtr(cohort + 1),
+                    num_users = uniqueN(user_id), 
+                    one_year_previous_cohort_spend = sum(order_total_amount))]
+    }
+  )
+) # and we'd compare this to that quarters spend with users in the cohort, ie order_table[ quarter == user_cohort, sum(spend)]
 
 ## read in actuals
 revenue_actuals = fread("/Users/arjungup/Documents/data_projects/edison/dpz_revenue_actuals.csv")
