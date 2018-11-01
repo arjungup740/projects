@@ -25,21 +25,7 @@ setkey(order_table, order_time, user_id, order_total_amount)
 
 ### create DPZ quarters. they have 3 12-week quarters and 1 16 week quarter, so could be causing a difference
 # In an ideal world we'd figure out foverlaps but this is faster for the moment
-order_table[ order_time <= '2015-03-22', dpz_quarter := '2015 Q1']
-order_table[ order_time >= '2015-03-23' & order_time <= '2015-06-14', dpz_quarter := '2015 Q2']
-order_table[ order_time >= '2015-06-15' & order_time <= '2015-09-06', dpz_quarter := '2015 Q3']
-order_table[ order_time >= '2015-09-07' & order_time <= '2016-01-03', dpz_quarter := '2015 Q4']
-order_table[ order_time >= '2016-01-04' & order_time <= '2016-03-27', dpz_quarter := '2016 Q1']
-order_table[ order_time >= '2016-03-28' & order_time <= '2016-06-19', dpz_quarter := '2016 Q2']
-order_table[ order_time >= '2016-06-20' & order_time <= '2016-09-11', dpz_quarter := '2016 Q3']
-order_table[ order_time >= '2016-09-12' & order_time <= '2017-01-01', dpz_quarter := '2016 Q4']
-order_table[ order_time >= '2017-01-02' & order_time <= '2017-03-26', dpz_quarter := '2017 Q1']
-order_table[ order_time >= '2017-03-27' & order_time <= '2017-06-18', dpz_quarter := '2017 Q2']
-order_table[ order_time >= '2017-06-19' & order_time <= '2017-09-10', dpz_quarter := '2017 Q3']
-order_table[ order_time >= '2017-09-11' & order_time <= '2017-12-31', dpz_quarter := '2017 Q4']
-order_table[ order_time >= '2018-01-01' & order_time <= '2018-03-25', dpz_quarter := '2018 Q1']
-order_table[ order_time >= '2018-03-26' & order_time <= '2018-06-17', dpz_quarter := '2018 Q2']
-order_table[ order_time >= '2018-06-18', dpz_quarter := '2018 Q3']
+convertToDPZQuarter(order_table, 'order_time', 'dpz_quarter')
 order_table[, dpz_quarter := as.yearqtr(dpz_quarter)]
 
 spend_by_day = aggregateOrderTable(order_table, 'daily')
@@ -50,40 +36,80 @@ quickLineGraph(spend_by_quarter[quarter != '2018 Q3'], 'quarter', 'yoy_normalize
 spend_by_dpz_quarter = aggregateOrderTable(order_table, 'dpz_quarterly')
 quickLineGraph(spend_by_dpz_quarter[dpz_quarter != '2018 Q3'], 'dpz_quarter', 'yoy_normalized_spend') # hm not great
 
-###### we try cohorting without worrying about dpz_quarters for a second
-order_table[, user_date_of_birth := min(order_time), by = user_id] # get birth
-order_table[, user_cohort := as.yearqtr(user_date_of_birth)] # assign them to a cohort
-cohort_sizes = order_table[, .(count_unique_customers = uniqueN(user_id)), by = user_cohort] # see number of people in each cohort
+###### cohorting without worrying about dpz_quarters for a second
+order_table[, user_date_of_birth := min(order_time), by = user_id] # get birth time
+# assign cohorts based on DPZ time
+variable_to_bound_by = 'user_date_of_birth'
+variable_to_create = 'dpz_quarter_of_birth'
+convertToDPZQuarter(order_table, variable_to_bound_by, variable_to_create)
+order_table[, dpz_quarter_of_birth := as.yearqtr(dpz_quarter_of_birth)]
 
-order_table[quarter == '2017 Q1' & user_cohort == '2016 Q1', .(uniqueN(user_id), sum(order_total_amount))] # get a count of people who were born in 2015 Q1 transacting in 2016 Q1 # 21815
-order_table[quarter == '2016 Q1' & user_cohort == '2016 Q1', .(uniqueN(user_id), sum(order_total_amount))]
-### to start what we want to do is say give me the spend of all people who were born a year before the previous quarter
-all_usable_cohorts = cohort_sizes[, user_cohort][1:10] # stop afer 2017 Q2
-quarter_spend_frame_naive_cohorts = rbindlist(
-  lapply(all_usable_cohorts, function(cohort){
-    order_table[quarter == cohort + 1 & user_cohort == cohort, 
-                  .(quarter = as.yearqtr(cohort + 1),
-                    num_surviving_users = uniqueN(user_id), 
-                    one_year_later_cohort_spend = sum(order_total_amount))]
+cohort_sizes = order_table[, .(count_unique_customers = uniqueN(user_id)), by = dpz_quarter_of_birth] # see number of people in each cohort
+
+
+##### to start what we want to do is say give me the spend of all people who were born a year before the previous quarter
+### toy example
+survivors = order_table[dpz_quarter == '2018 Q1' & dpz_quarter_of_birth == '2017 Q1', unique(user_id) ] # survivors
+order_table[ user_id %in% survivors & dpz_quarter == '2017 Q1', sum(order_total_amount)]
+order_table[ user_id %in% survivors & dpz_quarter == '2018 Q1', sum(order_total_amount)]
+
+### now scale up.
+# we can get the naive predictions all at once actually
+all_usable_cohorts = as.yearqtr(cohort_sizes[, dpz_quarter_of_birth][1:10])
+ yoy_vector =    
+    sapply(all_usable_cohorts, function(cohort) { 
+    survivors = order_table[dpz_quarter == cohort + 1 & dpz_quarter_of_birth == cohort, unique(user_id)] 
+    cohort_initial_spend = order_table[ user_id %in% survivors & dpz_quarter == cohort, sum(order_total_amount)]
+    cohort_one_year_later_spend = order_table[ user_id %in% survivors & dpz_quarter == cohort + 1, sum(order_total_amount)]
+    cohort_one_year_later_spend / cohort_initial_spend - 1
     }
   )
-) # and we'd compare this to that quarters spend with users in the cohort, ie order_table[ quarter == user_cohort, sum(spend)]
-# join the above to compare against that quarter's spend
-spend_by_cohorts_in_birth_quarter = order_table[ quarter == user_cohort, 
-                                                 .(birth_quarter_plus_one_year = as.yearqtr(quarter + 1),
-                                                   total_spend_in_birth_quarter = sum(order_total_amount), 
-                                                   num_users_at_birth = uniqueN(user_id)), 
-                                                 by = quarter]
+quarter_spend_frame_naive_cohorts = data.table(dpz_quarter = all_usable_cohorts + 1, yoy_signal = yoy_vector)
+quickLineGraph(quarter_spend_frame_naive_cohorts, 'dpz_quarter', 'yoy_signal')
 
-quarter_spend_frame_naive_cohorts = merge(quarter_spend_frame_naive_cohorts, spend_by_cohorts_in_birth_quarter, by.x = 'quarter', by.y = 'birth_quarter_plus_one_year')
-quarter_spend_frame_naive_cohorts[, yoy_signal := one_year_later_cohort_spend / total_spend_in_birth_quarter - 1]
-quickLineGraph(quarter_spend_frame_naive_cohorts, 'quarter', 'yoy_signal')
+# can we get the spend of all eligible cohorts for a given quarter?
+
+# results + intercept adjustment
+results_frame = merge(revenue_actuals, quarter_spend_frame_naive_cohorts[ dpz_quarter != '2015 Q1' & dpz_quarter != '2015 Q2' & dpz_quarter != '2015 Q3' & dpz_quarter != '2015 Q4' & dpz_quarter != '2018 Q3'], by.x = 'quarter', by.y = 'dpz_quarter')
+adj = mean(results_frame$yoy_total_revenue - results_frame$yoy_signal)# actual - predicted
+results_frame[, yoy_signal_adj := yoy_signal + adj]
+
+ggplot(results_frame, aes(quarter, yoy_signal_adj)) + geom_line() + 
+  geom_line(aes(y = yoy_domestic_franchise_revenue, color = 'red')) +
+  geom_line(aes(y = yoy_domestic_company_owned_revenue, color = 'green')) +
+  geom_line(aes(y = yoy_total_revenue, color = 'blue')) + 
+  ylab('Quarterly YoY Growth') + theme(legend.position="none") + xlab("Domino's Quarter") +
+  ggtitle('Prediction Vs. Actuals')
+
+ggplot(results_frame, aes(quarter, yoy_domestic_franchise_revenue), color = 'red') + geom_line() + 
+  geom_line(aes(y = yoy_domestic_franchise_revenue, color = 'red')) +
+  geom_line(aes(y = yoy_domestic_company_owned_revenue, color = 'green')) +
+  geom_line(aes(y = yoy_total_revenue, color = 'blue')) + 
+  ylab('Quarterly YoY Growth') + theme(legend.position="none") + xlab("Domino's Quarter") +
+  ggtitle('Actuals')
+
 ## read in actuals
-revenue_actuals = fread("/Users/arjungup/Documents/data_projects/edison/dpz_revenue_actuals.csv")
-setnames(revenue_actuals, 'yoy_tota_revenue', 'yoy_total_revenue')
+revenue_actuals = fread("/Users/arjungup/projects/data_projects/edison/dpz_revenue_actuals.csv")
+# deal with minor formatting errors
+updated_column_names = sapply(names(revenue_actuals), function(string){ gsub(' ','_', string)}) # add "_"
+names(revenue_actuals) = updated_column_names
+revenue_actuals[date_began == '', date_began := NA] # this doesn't matter
 fmt = '%m/%d/%Y'
 revenue_actuals[, c('date_began', 'date_ended', 'quarter') := list(as.Date(date_began, fmt), as.Date(date_ended, fmt), as.yearqtr(quarter))]
 quickLineGraph(revenue_actuals, 'quarter', 'yoy_domestic_franchise_revenue')
 quickLineGraph(revenue_actuals, 'quarter', 'yoy_domestic_company_owned_revenue')
 quickLineGraph(revenue_actuals, 'quarter', 'yoy_total_revenue')
+
+# an intercept adjustment -- should be pretty easy
+revenue_actuals
+
+## plot actuals and predictions on one graph
+results_frame = merge(revenue_actuals, spend_by_dpz_quarter[ dpz_quarter != '2015 Q1' & dpz_quarter != '2015 Q2' & dpz_quarter != '2015 Q3' & dpz_quarter != '2015 Q4' & dpz_quarter != '2018 Q3'], by.x = 'quarter', by.y = 'dpz_quarter')
+ggplot(results_frame, aes(quarter, yoy_normalized_spend)) + geom_line() + 
+  geom_line(aes(y = yoy_domestic_franchise_revenue, color = 'red')) +
+  geom_line(aes(y = yoy_domestic_company_owned_revenue, color = 'green')) +
+  geom_line(aes(y = yoy_total_revenue, color = 'blue')) + 
+  ylab('Quarterly YoY Growth') + theme(legend.position="none") + xlab("Domino's Quarter") +
+  ggtitle('Prediction Vs. Actuals')
+
 

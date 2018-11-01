@@ -16,3 +16,21 @@ aggregateOrderTable = function(order_table, cadence) { # cadence can be 'daily',
 quickLineGraph = function(dat, x_variable, y_variable) {
   print(ggplot(dat, aes_string(x = x_variable, y = y_variable)) + geom_line())
 }
+
+convertToDPZQuarter = function(order_table, variable_to_bound_by, variable_to_create) {
+  order_table[ eval(parse(text = variable_to_bound_by)) <= '2015-03-22', (variable_to_create) := '2015 Q1']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2015-03-23' & eval(parse(text = variable_to_bound_by)) <= '2015-06-14', (variable_to_create) := '2015 Q2']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2015-06-15' & eval(parse(text = variable_to_bound_by)) <= '2015-09-06', (variable_to_create) := '2015 Q3']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2015-09-07' & eval(parse(text = variable_to_bound_by)) <= '2016-01-03', (variable_to_create) := '2015 Q4']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2016-01-04' & eval(parse(text = variable_to_bound_by)) <= '2016-03-27', (variable_to_create) := '2016 Q1']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2016-03-28' & eval(parse(text = variable_to_bound_by)) <= '2016-06-19', (variable_to_create) := '2016 Q2']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2016-06-20' & eval(parse(text = variable_to_bound_by)) <= '2016-09-11', (variable_to_create) := '2016 Q3']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2016-09-12' & eval(parse(text = variable_to_bound_by)) <= '2017-01-01', (variable_to_create) := '2016 Q4']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2017-01-02' & eval(parse(text = variable_to_bound_by)) <= '2017-03-26', (variable_to_create) := '2017 Q1']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2017-03-27' & eval(parse(text = variable_to_bound_by)) <= '2017-06-18', (variable_to_create) := '2017 Q2']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2017-06-19' & eval(parse(text = variable_to_bound_by)) <= '2017-09-10', (variable_to_create) := '2017 Q3']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2017-09-11' & eval(parse(text = variable_to_bound_by)) <= '2017-12-31', (variable_to_create) := '2017 Q4']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2018-01-01' & eval(parse(text = variable_to_bound_by)) <= '2018-03-25', (variable_to_create) := '2018 Q1']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2018-03-26' & eval(parse(text = variable_to_bound_by)) <= '2018-06-17', (variable_to_create) := '2018 Q2']
+  order_table[ eval(parse(text = variable_to_bound_by)) >= '2018-06-18', (variable_to_create) := '2018 Q3']
+}
