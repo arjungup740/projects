@@ -1,0 +1,17 @@
+project ideas
+
+How similar is kayak.com from Expedia? For a bunch of itineraries, see the overlap in flights returned, prices. Does it really matter which one you use?
+
+Is Footlocker really more expensive than Omega? See product overlap, prices
+
+Quanity the price differential for living in NYC -- scrape chipotle prices if you were to order in a bunch of differnet locales
+
+Get "notoriety"/interest reading on different funds/banks by amount of threads about them and recency of those threads in wall street oasis and other sites
+
+Scrape 13-F of tiger cubs, get a read on the similarity of their longs
+
+Assess propensity of artists on wikipedia to have substance abuse issues
+
+some sort of top 40 songs analysis
+
+Artist "productivity" in terms of studio albums and tours
