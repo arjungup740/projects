@@ -4,7 +4,7 @@ from fpdf import FPDF
 import smtplib
 
 gmail_user = 'arjungup740@gmail.com'  
-gmail_password = 'Pantherfan16' # TODO there's gotta be a way you don't have to hardcode password here, so we can put this on github
+gmail_password =  # TODO there's gotta be a way you don't have to hardcode password here, so we can put this on github
 
 sent_from = gmail_user  
 to = 'arjungup740@gmail.com'
