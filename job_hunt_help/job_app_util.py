@@ -1,7 +1,19 @@
 ## want to write a utility that allows us to generate our cover letters and our cold emails programmatically, so we minimize the chance of human error
+# https://stackabuse.com/how-to-send-emails-with-gmail-using-python/ very helpful
+from fpdf import FPDF
+import smtplib
+
+gmail_user = 'arjungup740@gmail.com'  
+gmail_password = 'Pantherfan16' # TODO there's gotta be a way you don't have to hardcode password here, so we can put this on github
+
+sent_from = gmail_user  
+to = 'arjungup740@gmail.com'
+subject = 'Wharton Graduate with a Passion for Analytics'  
+# body = 'Hey, what's up?\n\n- You'
+
 
 def coldEmailWriter(email_text):
-	print('\n\n')
+	print('\n')
 	print(email_text)
 
 
@@ -35,6 +47,29 @@ piece5 = "). These positions are very exciting to me, and I believe that my skil
 piece6 = ' would provide me with an outstanding opportunity to learn and help '
 piece7 = ' succeed at the same time.\n\nI found your contact in Penn’s alumni database and was hoping that you could possibly direct me to a general recruiter or the recruiter specifically for this role. My resume is attached to this email. I would be extremely grateful for any help or contact regarding this opportunity!\nThank you in advance for your time!\n\nCheers,\n\nArjun\nhttps://www.linkedin.com/in/arjun-s-gupta-193a178a/' 
 
-email_text = piece1 + name + piece2 + quantity_of_roles_language + piece3 + company + piece4 + position_string + piece5 + company + piece6 + company + piece7
+email_body = piece1 + name + piece2 + quantity_of_roles_language + piece3 + company + piece4 + position_string + piece5 + company + piece6 + company + piece7
 
-coldEmailWriter(email_text)
+coldEmailWriter(email_body)
+
+# email_text = "From: %s \nTo: %s \nSubject: %s \n%s" % (sent_from, ", ".join(to), subject, email_body)
+
+# try:  
+#     server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+#     server.ehlo()
+#     server.login(gmail_user, gmail_password)
+#     server.sendmail(sent_from, to, email_text)
+#     server.close()
+
+#     print ('Email sent!')
+# except Exception as e:  
+#     print ('Something went wrong' + str(e))
+
+
+
+## TODO figure out how to wring text to pdf
+# pdf = FPDF()
+# pdf.add_page()
+# pdf.set_xy(0, 0)
+# pdf.set_font('arial', 'B', 13.0)
+# pdf.cell(ln=0, h=5.0, align='L', w=0, txt = email_text, border=0)
+# pdf.output('/Users/arjungupta/projects/job_hunt_help/test.pdf', 'F')
