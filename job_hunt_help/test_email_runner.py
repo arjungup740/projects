@@ -1,29 +1,42 @@
+### round 2 of auto-emailer
 import smtplib
+from datetime import date
+import os 
 
 gmail_user = 'arjungup740@gmail.com'  
-gmail_password = 'Pantherfan16' # TODO there's gotta be a way you don't have to hardcode password here, so we can put this on github
+gmail_password = 
 
 sent_from = gmail_user  
-to = ['joejmaher@gmail.com', 'gautham.venkatesan@pwc.com', 'halla@wharton.upenn.edu']
-subject = 'Care to propose ideas for the Arjun listserv?'  
-body = """
-Hello! If you are reading this, you have made history as having received the first email sent from Arjun's computer completely programmatically (I.e. I did not open gmail or even google chrome to send this, but rather ran one line on the terminal).
+to = ['arjungup740@gmail.com']
+subject = 'Daily Health Reminder %s' % date.today()
+# body = """
+# reminder to do something healthy today! Love you!
+# """
 
-Don't be too impressed though, if you google "send emails through gmail python" there's some extremely easy-to-follow templates.
+messages_folder = '/Users/arjungupta/projects/auto_emailer/messages/'
+to_send_folder = messages_folder + 'to_send'
+already_sent_folder = messages_folder + 'already_sent'
+# messages_folder = os.path.dirname('/Users/arjungupta/projects/auto_emailer/messages')
+## list messages
+to_send_messages = os.listdir(to_send_folder)
 
-At any rate, this is part of the syllabus of personal projects I'm going to be working on while I have a break from Coatue. So, I'd love to hear from you if you have any ideas of things that might be fun or useful (e.g. maybe Joe would like a weekly email summarizing key stats from the Vikings and Timberwolves games or maybe it'd be interesting to get an email telling you how many snaps you received). 
+## check to see if there any messages available, otherwise make some new ones
+try:
+	indiv_message = to_send_messages[0]
+except Exception as e: ## if there aren't, then email a reminder to yourself to add some new ones
+	
 
-Obviously it's gonna be pretty rough and nowhere near as polished as if a professional did it, but we'll have some fun and I'll learn something in the process.
+final_to_send_path = os.path.join(to_send_folder, indiv_message)
+final_replacement_path = os.path.join(already_sent_folder, indiv_message)
 
-Rise and grind boys,
+with open(final_to_send_path, 'r') as file:
+    body = file.read()#.replace('\n', '')
 
-Arjun
-"""
+# print(body)
 
 email_text = """From: %s  
 To: %s  
 Subject: %s
-
 %s
 """ % (sent_from, ", ".join(to), subject, body)
 
@@ -35,5 +48,12 @@ try:
     server.close()
 
     print ('Email sent!')
-except Exception as e:  
+    # print('moving this message to already sent folder')
+    os.rename(final_to_send_path, final_replacement_path)
+    # print(final_to_send_path)
+    # print(final_replacement_path)
+    print('moved file')
+
+
+except Exception as e:
     print ('Something went wrong' + str(e))
